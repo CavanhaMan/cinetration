@@ -4,7 +4,7 @@ use cinemao;
 
 -- ----------------------------------------------------------------------------------
 /* 1 LISTAR NOME E GENERO DE TODOS OS FILMES, POR ORDEM DE GENERO */
-select distinct f.nome_film FILME, g.nome_gen GENERO
+select f.nome_film FILME, g.nome_gen GENERO
 from fgenero fg
 inner join filme f on f.cod_film = fg.cod_film
 inner join genero g on g.cod_gen = fg.cod_gen
@@ -12,7 +12,7 @@ ORDER BY 2;
 
 -- ----------------------------------------------------------------------------------
 /* 2 LISTAR NOME E GENERO DE TODOS OS FILMES DE AÇÃO POR ORDEM DE FILME */
-select distinct f.nome_film FILME, g.nome_gen GENERO
+select f.nome_film FILME, g.nome_gen GENERO
 from fgenero fg
 inner join filme f on f.cod_film = fg.cod_film
 inner join genero g on g.cod_gen = fg.cod_gen
@@ -39,15 +39,16 @@ from fdiretor fd
 inner join diretor d on d.cod_dir = fd.cod_dir
 inner join filme f on f.cod_film = fd.cod_film
 group by 1
-having count(1)>1
-order by 2;
+having count(1) > 1
+order by 2 DESC;
+
 
 SELECT NOME_DIR, COUNT(*) QUANTOS_FILMES
 FROM FDIRETOR FD
 INNER JOIN FILME F ON F.COD_FILM = FD.COD_FILM
 INNER JOIN DIRETOR D ON D.COD_DIR = FD.COD_DIR
 GROUP BY 1
-HAVING COUNT(1)>10
+HAVING COUNT(1) > 20
 ORDER BY 2 DESC;
 
 -- ----------------------------------------------------------------------------------
@@ -57,9 +58,15 @@ FROM fdiretor fd
 INNER JOIN diretor d ON d.cod_dir = fd.cod_dir
 INNER JOIN filme f ON f.cod_film = fd.cod_film
 GROUP BY NOME
-HAVING COUNT(*) > 1
-ORDER BY 2 DESC
-LIMIT 1;
+HAVING COUNT(*) = (
+	SELECT COUNT(*) QUANTOS_FILMES
+	FROM fdiretor fd
+	INNER JOIN diretor d ON d.cod_dir = fd.cod_dir
+	INNER JOIN filme f ON f.cod_film = fd.cod_film
+	GROUP BY d.nome_dir
+	HAVING COUNT(*) > 1
+	ORDER BY QUANTOS_FILMES DESC
+	LIMIT 1 );
 
 SELECT d.nome_dir NOME, COUNT(*) QUANTOS_FILMES
 FROM fdiretor fd
@@ -88,6 +95,10 @@ select nome_film FILME, runtime DURACAO
 from filme
 having runtime = (select max(runtime) from filme);
 
+select nome_film FILME, runtime DURACAO
+from filme
+having runtime = (select MIN(runtime) from filme WHERE runtime > 0);
+
 -- ----------------------------------------------------------------------------------
 /* 8 QUAL O FILME MAIS CURTO? */
 select nome_film FILME, runtime DURACAO from filme
@@ -113,6 +124,9 @@ having release_date = (
     from filme 
     where release_date <> '0000-00-00'
 );
+	select MIN(release_date) 
+    from filme 
+    where release_date <> '0000-00-00';
 
 -- ----------------------------------------------------------------------------------
 /* 10 QUAL O FILME MAIS RECENTE? */
@@ -124,7 +138,7 @@ having release_date = (select MAX(release_date) from filme);
 /* 11 QUANTOS IDIOMAS TEM OS FILMES DESSA LISTA? */
 SELECT count(*) from lingua;
 
-SELECT l.nome_ling, count(*)
+SELECT l.nome_ling, count(*)#SÓ FUNCIONA AQUI COM O GROUP BY
 from flingua fl
 inner join filme f on f.cod_film = fl.cod_film
 inner join lingua l on l.cod_ling = fl.cod_ling
@@ -161,7 +175,7 @@ inner join lingua l on l.cod_ling = fl.cod_ling
 inner join filme f on f.cod_film = fl.cod_film
 GROUP BY 1
 ORDER BY 2 DESC
-LIMIT 2;
+LIMIT 3;
 
 select f.nome_film FILME, count(*) MAX_FILMES
 from flingua fl
@@ -195,13 +209,13 @@ inner join pais p on p.cod_pais = fp.cod_pais
 inner join filme f on f.cod_film = fp.cod_film
 group by 1
 having count(1) = (
-		SELECT count(*)
+		SELECT count(*) TOTAL_FILMES
 		from fpais fp
 		inner join pais p on p.cod_pais = fp.cod_pais
 		inner join filme f on f.cod_film = fp.cod_film
 		group by p.nome_pais
-		having count(1) > 0
-		order by 1 desc
+		having TOTAL_FILMES > 0
+		order by TOTAL_FILMES desc
 		limit 1
 	);
 
@@ -315,9 +329,9 @@ where nome_ling = 'CANTONESE';
 
 -- ----------------------------------------------------------------------------------
 /* 25 QUANTOS FILMES TEM LINK PARA O IMDB? E QUANTOS NÃO TEM LINK? */
-SELECT COUNT(*)
+SELECT COUNT(*) 'TOTAL DE FILMES COM LINK PARA IMDB'
 FROM filme
-WHERE imdb_link <> "";
+WHERE imdb_link <> NULL;
 
 SELECT COUNT(*)
 FROM filme
@@ -333,6 +347,27 @@ WHERE imdb_link not like 'http%';
 
 -- ----------------------------------------------------------------------------------
 /* 26 QUANTOS FILMES SAO DO BRASIL? E QUAL O GENERO DELES? */
+select filme.nome_film, genero.nome_gen, pais.nome_pais
+from fpais
+inner join pais on pais.cod_pais = fpais.cod_pais
+inner join filme on filme.cod_film = fpais.cod_film
+inner join fgenero on fgenero.cod_film = filme.cod_film
+inner join genero on genero.cod_gen = fgenero.cod_gen
+where pais.nome_pais = 'BRAZIL';
+
+/* _____________ */
+/*FILME-GENERO
+(2,4)
+FILME 2 TEM GENERO 4*/
+SELECT * FROM GENERO WHERE COD_GEN = 4;
+SELECT * FROM FILME WHERE COD_FILM = 2;
+
+/*FILME-PAIS
+(2,20)
+FILME 2 ESTÁ NO PAIS 20;*/
+SELECT * FROM FILME WHERE COD_FILM = 2;
+SELECT * FROM PAIS WHERE COD_PAIS = 20;
+
 select count(*)
 from fgenero fg
 inner join genero g on g.cod_gen = fg.cod_gen
@@ -363,6 +398,10 @@ SELECT COUNT(*)
 FROM filme
 WHERE collection <> "";
 
+select count(f.collection)
+from filme f
+WHERE collection <> "";
+
 SELECT collection, COUNT(collection)
 FROM filme
 WHERE collection <> ""
@@ -375,7 +414,7 @@ from (
 	FROM filme
 	WHERE collection <> ""
 	group by collection
-	ORDER BY 1)  X;
+	ORDER BY 1) X;
 
 -- ----------------------------------------------------------------------------------
 /* 28 QUANTOS FILMES FORAM LANÇADOS NO ANO EM QUE VOCE NASCEU? QUAIS SAO ELES? */
@@ -389,7 +428,7 @@ WHERE YEAR(release_date) = '1976';
 
 -- ----------------------------------------------------------------------------------
 /* 29 QUAL A DURACAO DO FILME "PULP FICTION", EM QUE ANO FOI LANCADO EM QUEM É O DIRETOR? */
-SELECT f.nome_film NOME, DATE_FORMAT(f.release_date, " %d de %M de %Y") LANCAMENTO, d.nome_dir DIRETOR
+SELECT f.nome_film NOME, DATE_FORMAT(f.release_date, "Dia %d do mes de %M do ano %Y") LANCAMENTO, d.nome_dir DIRETOR
 FROM fdiretor fd
 INNER JOIN filme f on f.cod_film = fd.cod_film
 INNER JOIN diretor d on d.cod_dir = fd.cod_dir
@@ -402,6 +441,19 @@ FROM fdiretor fd
 INNER JOIN filme f on f.cod_film = fd.cod_film
 INNER JOIN diretor d on d.cod_dir = fd.cod_dir
 WHERE d.nome_dir = 'Quentin Tarantino';
+
+/* selecione quais filmes foram feitos pelo mesmo diretor de 'Autumn Sonata' */
+SELECT f.nome_film NOME, d.nome_dir DIRETOR
+FROM fdiretor fd
+INNER JOIN filme f on f.cod_film = fd.cod_film
+INNER JOIN diretor d on d.cod_dir = fd.cod_dir
+WHERE d.nome_dir = (
+	SELECT d.nome_dir
+	FROM fdiretor fd
+	INNER JOIN filme f on f.cod_film = fd.cod_film
+	INNER JOIN diretor d on d.cod_dir = fd.cod_dir
+	WHERE f.nome_film = 'Autumn Sonata'
+);
 
 -- ----------------------------------------------------------------------------------
 /* 31 QUAIS FILMES O DIRETOR "ALFRED HITCHCOCK" DIRIGIU? */
@@ -421,9 +473,14 @@ WHERE length(nome_film)=53;
 SELECT nome_film FROM filme
 WHERE length(nome_film) = (SELECT MAX(length(nome_film)) FROM filme);
 
+SELECT nome_film FROM filme
+WHERE length(nome_film) = (SELECT MIN(length(nome_film)) FROM filme);
 -- ----------------------------------------------------------------------------------
 /* 33 QUAL FILME TEM A MAIOR DESCRICAO (OVERVIEW)? */
 SELECT MAX(length(OVERVIEW)) FROM filme;
+
+SELECT nome_film FROM filme
+WHERE length(OVERVIEW) = 1007;
 
 SELECT nome_film FROM filme
 WHERE length(OVERVIEW) = (SELECT MAX(length(OVERVIEW)) FROM filme);
@@ -435,6 +492,8 @@ where overview = "";
 
 -- ----------------------------------------------------------------------------------
 /* 35 QUAL O FILME MAIS VOTADO NO IMDB? (MAIOR NUMERO DE VOTOS) */
+SELECT MAX(VOTE_AVG) FROM FILME;
+
 select nome_film
 from filme
 where vote_avg = (select max(vote_avg) from filme);
@@ -446,7 +505,7 @@ from filme
 where vote_avg = (
 		select min(vote_avg)
 		from filme
-		where vote_avg >0
+		where vote_avg > 0
 	);
 
 -- ----------------------------------------------------------------------------------
@@ -464,6 +523,16 @@ inner join filme f on f.cod_film = fp.cod_film
 where nome_pais = 'Japan'
 and YEAR(f.release_date) > '2000'
 ORDER BY 2;
+
+select f.nome_film NOME, g.nome_gen GENERO, p.nome_pais PAÍS, f.film_year PRODUZIDO
+from fgenero fg
+inner join genero g on g.cod_gen = fg.cod_gen
+inner join filme f on f.cod_film = fg.cod_film
+inner join fpais fp on fp.cod_film = f.cod_film
+inner join pais p on p.cod_pais = fp.cod_pais
+where g.nome_gen = 'Documentary'
+and p.nome_pais = 'japan'
+and f.film_year LIKE '20%';
 
 select f.nome_film
 from fgenero fg
@@ -499,6 +568,24 @@ inner join filme fi on fi.cod_film = fd.cod_film
 where nome_pais = 'INDIA'
 order by 1;
 
+select DISTINCT d.nome_dir, p.nome_pais
+from fpais fp
+inner join pais p on p.cod_pais = fp.cod_pais
+inner join filme f on f.cod_film = fp.cod_film
+inner join fdiretor fd on fd.cod_film = f.cod_film
+inner join diretor d on d.cod_dir = fd.cod_dir
+where p.nome_pais = 'india';
+
+select d.nome_dir, p.nome_pais
+from fpais fp
+inner join pais p on p.cod_pais = fp.cod_pais
+inner join filme f on f.cod_film = fp.cod_film
+inner join fdiretor fd on fd.cod_film = f.cod_film
+inner join diretor d on d.cod_dir = fd.cod_dir
+where p.nome_pais = 'india'
+GROUP BY 1;
+
+
 -- ----------------------------------------------------------------------------------
 /* 40 QUAIS FILMES ITALIANOS SAO DE DRAMA */
 select f.nome_film, g.nome_gen, p.nome_pais
@@ -513,7 +600,7 @@ ORDER BY 1;
 
 -- ----------------------------------------------------------------------------------
 /* 41 QUANTOS FILMES CADA GENERO TEM NESSA LISTA? */
-SELECT g.nome_gen, count(*)
+SELECT distinct g.nome_gen, count(*)
 from fgenero fg
 inner join filme f on f.cod_film = fg.cod_film
 inner join genero g on g.cod_gen = fg.cod_gen
